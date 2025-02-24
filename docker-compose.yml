@@ -1,0 +1,31 @@
+version: "1.0"
+services:
+  spring-boot-application:
+    image: spring-boot-application
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8888:8888"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+    networks:
+      - application-network
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+        - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - application-network
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    networks:
+      - application-network
+
+networks:
+    application-network:
+        driver: bridge
