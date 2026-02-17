@@ -1,4 +1,5 @@
 version: "1.0"
+
 services:
   spring-boot-application:
     image: spring-boot-application
@@ -9,23 +10,139 @@ services:
       - "8888:8888"
     environment:
       - SPRING_PROFILES_ACTIVE=dev
+      - TZ=Asia/Kolkata
+      # For Podman DNS Resolution
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://tempo:4318
+#      - OTEL_EXPORTER_OTLP_PROTOCOL=grpc # use gRPC for OTLP
+      - OTEL_TRACES_EXPORTER=otlp # service name for Span
+      - OTEL_METRICS_EXPORTER=none # disable metrics exporter
+      - OTEL_LOGS_EXPORTER=none # disable logs exporter
+      # RabbitMQ Configuration
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - SPRING_RABBITMQ_PORT=5672
+      - SPRING_RABBITMQ_USERNAME=guest
+      - SPRING_RABBITMQ_PASSWORD=guest
     networks:
-      - application-network
+      application-network:
+        aliases:
+          - spring-boot-application
+    depends_on:
+      - tempo
+      - prometheus
+      - loki
+      - rabbitmq
+    volumes:
+      - ./logs:/home/default/logs   # ✅ host → container log mount
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   prometheus:
     image: prom/prometheus:latest
     ports:
       - "9090:9090"
     volumes:
-        - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
     networks:
-      - application-network
+      application-network:
+        aliases:
+          - prometheus
+    environment:
+      - TZ=Asia/Kolkata
+
   grafana:
     image: grafana/grafana:latest
     ports:
       - "3000:3000"
+    volumes:
+      - ./grafana-provisioning:/etc/grafana/provisioning
     networks:
-      - application-network
+      application-network:
+        aliases:
+          - grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - TZ=Asia/Kolkata
+    depends_on:
+      - prometheus
+      - loki
+      - tempo
+
+  loki:
+    image: grafana/loki:2.8.7
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki-config-simple.yml:/etc/loki/local-config.yaml
+      - ./loki-data:/tmp/loki              # ✅ Persistent writable volume
+    command: -config.file=/etc/loki/local-config.yaml
+    environment:
+      - LOKI_STORAGE_PATH=/tmp/loki
+      - TZ=Asia/Kolkata
+    networks:
+      application-network:
+        aliases:
+          - loki
+
+  promtail:
+    image: grafana/promtail:latest
+    volumes:
+      - ./promtail-config.yml:/etc/promtail/config.yml
+      - ./logs:/var/log/app:ro             # ✅ App logs directory
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      application-network:
+        aliases:
+          - promtail
+    depends_on:
+      - loki
+    environment:
+      - TZ=Asia/Kolkata
+
+  tempo:
+    image: grafana/tempo:latest
+    command: [ "-config.file=/etc/tempo.yml", "--target=all", "--storage.trace.backend=local", "--storage.trace.local.path=/var/tempo", "--auth.enabled=false" ]
+    volumes:
+      - ./tempo-config.yaml:/etc/tempo.yml
+      - ./tempo-data:/tmp/tempo
+    ports:
+      - "3200:3200"  # tempo
+      - "4317:4317"  # otlp grpc
+      - "4318:4318"  # otlp http
+    networks:
+      application-network:
+        aliases:
+          - tempo
+    environment:
+      - TZ=Asia/Kolkata
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"   # AMQP port
+      - "15672:15672" # Management UI port
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+      - TZ=Asia/Kolkata
+    networks:
+      application-network:
+        aliases:
+          - rabbitmq
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+#    healthcheck:
+#      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+#      interval: 30s
+#      timeout: 10s
+#      retries: 5
 
 networks:
-    application-network:
-        driver: bridge
+  application-network:
+    driver: bridge
+    name: application-network
+
+volumes:
+  rabbitmq-data:

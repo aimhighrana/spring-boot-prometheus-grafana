@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <appender name="ConsolePlain" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level tenantId=[%X{tenantId}] mtxs=[%X{mtxs}] x-process-id=[%X{x-process-id}] x-crid=[%X{x-crid}] %logger{36} : %msg%n</pattern>
+        </encoder>
+    </appender>
+    <appender name="ConsoleJson" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <fieldNames>
+                <message>[ignore]</message>
+            </fieldNames>
+            <provider class="net.logstash.logback.composite.loggingevent.LoggingEventPatternJsonProvider">
+                <pattern>
+                    {
+                    "message": "%.-6000msg"
+                    }
+                </pattern>
+            </provider>
+        </encoder>
+    </appender>
+    <root level="INFO">
+        <appender-ref ref="ConsoleJson"/>
+<!--        <if condition='property("mdo.logging.format").contains("json")'>-->
+<!--            <then>-->
+<!--                <appender-ref ref="ConsoleJson"/>-->
+<!--            </then>-->
+<!--            <else>-->
+<!--                <appender-ref ref="ConsolePlain"/>-->
+<!--            </else>-->
+<!--        </if>-->
+    </root>
+</configuration>

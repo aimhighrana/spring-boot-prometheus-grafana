@@ -1,0 +1,58 @@
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+    listener:
+      simple:
+        acknowledge-mode: auto
+        concurrency: 1
+        max-concurrency: 5
+
+# RabbitMQ Queue and Exchange Configuration
+rabbitmq:
+  queue:
+    first: cr_queue
+    second: bulk_queue
+  exchange: demo.exchange
+  routing-key:
+    first: first.routing.key
+    second: second.routing.key
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: prometheus
+  metrics:
+    tags:
+      application: app
+    distribution:
+      percentiles-histogram:
+        http:
+          server:
+            requests: 'true'
+  # Disable OTLP tracing export for local runs
+#  otlp:
+#    tracing:
+#      endpoint: ""
+#    metrics:
+#      export:
+#        enabled: false
+#  tracing:
+#    sampling:
+#      probability: 1.0
+#    enabled: true
+#logging:
+
+#  pattern:
+#    level: "trace_id=%mdc{trace_id} span_id=%mdc{span_id} trace_flags=%mdc{trace_flags} %p"
+#  level:
+#    com.example.app: DEBUG
+
+#logging.pattern.level="trace.id=%mdc{trace_id} span.id=%mdc{span_id} trace.flags=%mdc{trace_flags} %p"

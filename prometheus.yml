@@ -1,6 +1,11 @@
 scrape_configs:
   - job_name: 'spring-boot-application'
     metrics_path: '/actuator/prometheus'
-    scrape_interval: 15s # This can be adjusted based on our needs
+    scrape_interval: 5s # This can be adjusted based on our needs
     static_configs:
-      - targets: ['host.docker.compose:8888']
+      - targets: ['spring-boot-application:8888']
+  
+  - job_name: 'tempo'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['tempo:3200']
